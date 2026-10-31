@@ -5,6 +5,9 @@
 
 **不需要虚拟声卡，不需要改系统设置。** 装完 mod，游戏里按 F9 点一下就行。
 
+> ⚠️ **仅支持 Windows。** 抓声音走的是 WASAPI process loopback —— Windows 独有的系统接口。
+> Linux / macOS 上 mod 能正常加载（`Com` 初始化会静默退化），但面板里不会有可选的程序。
+
 ---
 
 ## 玩家要装什么
