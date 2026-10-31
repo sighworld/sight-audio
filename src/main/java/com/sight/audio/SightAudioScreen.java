@@ -35,20 +35,38 @@ public final class SightAudioScreen extends Screen {
     private static final int ROW_H = 18;
     private static final int LIST_H = 120;
 
-    // 调色（ARGB）
-    private static final int C_DIM = 0xB4000000;
-    private static final int C_PANEL = 0xF00E1418;
-    private static final int C_BORDER = 0xFF2E6B75;
-    private static final int C_TITLE = 0xFF7DF9FF;
-    private static final int C_TEXT = 0xFFE6E6E6;
-    private static final int C_MUTED = 0xFF8A9099;
-    private static final int C_ROW_HOVER = 0xFF1C2830;
-    private static final int C_ROW_SEL = 0xFF17454F;
+    // 调色（ARGB）—— 深色磨砂玻璃（参考 DangoMusic 的 liquid-glass 风格）
+    //
+    // 🔴 四条原则，改之前先读：
+    //   ① 面板是<b>深色中性</b>（近黑，带一点点冷调），不是彩色玻璃 —— 彩色大面积铺开
+    //      会显得廉价，而且和玩家背后的世界画面打架。
+    //   ② 🔴 <b>深色底上叠白 alpha 会立刻变成灰白块</b>：0x33FFFFFF 在近黑面板上
+    //      看起来就是「一整条白条」，不是「淡淡的选中」。所以亮色一律压在 0x0D~0x22，
+    //      层次靠「比周围亮一点点」堆，不靠「白」。
+    //   ③ 边框极淡（0x1A 左右）。玻璃的边靠"细",不靠"亮"。
+    //   ④ 品牌青（C_TITLE）只出现在标题、滑块、进行中状态这类少量强调上，绝不整圈描边。
+    // ⚠️ 磨砂程度跟随玩家的「菜单背景模糊度」设置；拖到 0 时退化成半透明，不会崩。
+    private static final int C_TINT = 0x1406090D;        // 全屏薄纱（很淡的冷色）
+    private static final int C_PANEL_TOP = 0x8F252A31;   // 玻璃底：上（受光侧稍亮）
+    private static final int C_PANEL_BOT = 0x85181C22;   // 玻璃底：下
+    private static final int C_OUTLINE = 0x1AFFFFFF;     // 外框：极淡白
+    private static final int C_BORDER_HI = 0x3AFFFFFF;   // 顶部高光
+    private static final int C_SHADOW_1 = 0x3D000000;    // 外阴影（近）
+    private static final int C_SHADOW_2 = 0x24000000;    // 外阴影（中）
+    private static final int C_SHADOW_3 = 0x12000000;    // 外阴影（远）
+    private static final int C_BORDER = 0x1AFFFFFF;      // 通用描边（淡白）
+    private static final int C_LIST_BG = 0x1C000000;     // 列表凹槽（只比面板暗一点）
+    private static final int C_TRACK = 0x33000000;       // 滑块轨道
+    private static final int C_TITLE = 0xFF7DF9FF;       // 品牌青 —— 只给标题
+    private static final int C_TEXT = 0xFFF0F0F2;
+    private static final int C_MUTED = 0xFF9A9AA2;
+    private static final int C_ROW_HOVER = 0x12FFFFFF;
+    private static final int C_ROW_SEL = 0x1FFFFFFF;     // 选中：淡白，不是白条
     private static final int C_LIVE = 0xFF66DD88;
     private static final int C_WARN = 0xFFFF6B6B;
-    private static final int C_BTN = 0xFF1E2A31;
-    private static final int C_BTN_HOVER = 0xFF2C4049;
-    private static final int C_BTN_OFF = 0xFF161C20;
+    private static final int C_BTN = 0x14FFFFFF;
+    private static final int C_BTN_HOVER = 0x22FFFFFF;
+    private static final int C_BTN_OFF = 0x0D000000;
 
     // ---------------------------------------------------------------- 状态
 
@@ -218,14 +236,25 @@ public final class SightAudioScreen extends Screen {
 
     @Override
     public void extractBackground(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
-        g.fill(0, 0, width, height, C_DIM);
+        // 🔴 磨砂的关键一步：先把背后的世界模糊掉。
+        //    原版 Screen#extractBackground 只在「主菜单」调它 —— 反编译字节码看得很清楚：
+        //      isInGameUi() == true ⇒ 只画 extractTransparentBackground，不模糊；
+        //      否则才 panorama + blurred + menuBackground。
+        //    也就是说：游戏内打开界面时，原版默认<b>不给</b>模糊，必须自己调。
+        //    它跟随玩家的「菜单背景模糊度」（Options.getMenuBackgroundBlurriness），
+        //    拖到 0 时这里是无操作，退化成半透明 —— 可接受，不会崩。
+        extractBlurredBackground(g);
+
+        // 压暗：原版那套从深到浅的渐变，保证任何亮背景上文字都读得清
+        extractTransparentBackground(g);
+
+        // 主题冷色薄纱：整屏偏青，和面板同调（很淡，只是染色）
+        g.fill(0, 0, width, height, C_TINT);
     }
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
-        // 面板底
-        g.fill(x0, y0, x0 + PANEL_W, y0 + PANEL_H, C_PANEL);
-        border(g, x0, y0, x0 + PANEL_W, y0 + PANEL_H, C_BORDER);
+        glassPanel(g, x0, y0, x0 + PANEL_W, y0 + PANEL_H);
 
         g.text(font, "Sight Audio · 分享我电脑上的声音", x0 + 10, y0 + 8, C_TITLE);
         g.text(font, "单击选中，双击直接开始 · 再按 F9 关闭", x0 + 10, y0 + 21, C_MUTED);
@@ -236,8 +265,49 @@ public final class SightAudioScreen extends Screen {
         drawStatus(g);
     }
 
+    /**
+     * 磨砂玻璃卡片：外阴影 + 垂直渐变底 + 顶部 1px 高光 + 半透明描边。
+     *
+     * <p>层次是「阴影 → 玻璃 → 高光 → 边」四步叠加。阴影用三层递减 alpha 冒充模糊半径 ——
+     * Minecraft 的 {@code fill} 只能画实心矩形，没有真正的模糊，靠叠层骗眼睛即可。</p>
+     */
+    /**
+     * 面板圆角半径。
+     *
+     * <p>DangoMusic 那种观感的关键就是这个数<b>别太小</b>：8 以下看着像"没做圆角"，
+     * 16 以上在 250px 高的面板上会吃掉太多内容区。12 是这块尺寸的甜点。</p>
+     */
+    private static final int PANEL_RADIUS = 12;
+
+    /**
+     * 磨砂玻璃卡片：外阴影 + 圆角 + 1px 亮边 + 垂直渐变 + 顶部高光。
+     *
+     * <p>层次是「阴影 → 亮边环 → 玻璃 → 高光」四步叠加。阴影和亮边都用 {@link #roundRect}
+     * 画，因为直角阴影配圆角面板会露出四个尖角。</p>
+     */
+    private void glassPanel(GuiGraphicsExtractor g, int x1, int y1, int x2, int y2) {
+        final int r = PANEL_RADIUS;
+
+        // ① 外阴影：三层递减，冒充"模糊半径" —— fill 画不出真模糊，只能叠层骗眼睛
+        roundRect(g, x1 - 7, y1 - 5, x2 + 7, y2 + 9, r + 7, C_SHADOW_3, C_SHADOW_3);
+        roundRect(g, x1 - 4, y1 - 3, x2 + 4, y2 + 5, r + 4, C_SHADOW_2, C_SHADOW_2);
+        roundRect(g, x1 - 2, y1 - 1, x2 + 2, y2 + 2, r + 2, C_SHADOW_1, C_SHADOW_1);
+
+        // ② 1px 亮边：整块铺一圈淡白，等会儿用内层玻璃把中间盖掉，只剩 1px 的环
+        roundRect(g, x1, y1, x2, y2, r, C_OUTLINE, C_OUTLINE);
+
+        // ③ 玻璃本体：内缩 1px，上亮下暗的垂直渐变（受光感）
+        roundRect(g, x1 + 1, y1 + 1, x2 - 1, y2 - 1, Math.max(0, r - 1), C_PANEL_TOP, C_PANEL_BOT);
+
+        // ④ 顶部高光：只画中间平直那一段。🔴 别让它伸进圆角区，那里每行都在缩进，
+        //    2px 高的条会画成阶梯状的锯齿。
+        roundRect(g, x1 + r, y1 + 1, x2 - r, y1 + 2, 1, C_BORDER_HI, C_BORDER_HI);
+    }
+
     private void drawList(GuiGraphicsExtractor g, int mouseX, int mouseY) {
-        g.fill(listLeft - 1, listTop - 1, listRight + 1, listTop + LIST_H + 1, 0xFF0A0E11);
+        // 列表区：比面板再暗一点点的玻璃凹槽，圆角比面板小一档（同心圆角看着才顺）
+        roundRect(g, listLeft - 2, listTop - 2, listRight + 2, listTop + LIST_H + 2, 8,
+                C_LIST_BG, C_LIST_BG);
 
         if (error != null && !error.isEmpty()) {
             g.text(font, "扫描失败：" + ellipsize(error, PANEL_W - 30), listLeft + 6, listTop + 8, C_WARN);
@@ -263,10 +333,9 @@ public final class SightAudioScreen extends Screen {
                     && CaptureManager.targetPid() == r.pid();
 
             if (sel) {
-                g.fill(listLeft, ry, listRight, ry + ROW_H - 1, C_ROW_SEL);
-                border(g, listLeft, ry, listRight, ry + ROW_H - 1, C_BORDER);
+                roundRect(g, listLeft, ry, listRight, ry + ROW_H - 1, 5, C_ROW_SEL, C_ROW_SEL);
             } else if (idx == hovered) {
-                g.fill(listLeft, ry, listRight, ry + ROW_H - 1, C_ROW_HOVER);
+                roundRect(g, listLeft, ry, listRight, ry + ROW_H - 1, 5, C_ROW_HOVER, C_ROW_HOVER);
             }
 
             int nameColor = r.system() ? C_TITLE : (r.active() ? C_TEXT : C_MUTED);
@@ -291,21 +360,33 @@ public final class SightAudioScreen extends Screen {
             int barH = Math.max(16, trackH * visibleRows() / total);
             int barY = listTop + 2 + (trackH - barH) * scroll / Math.max(1, total - visibleRows());
             int bx = listRight - 3;
-            g.fill(bx, listTop + 2, bx + 2, listTop + 2 + trackH, 0xFF1A2228);
+            g.fill(bx, listTop + 2, bx + 2, listTop + 2 + trackH, C_TRACK);
             g.fill(bx, barY, bx + 2, barY + barH, C_BORDER);
         }
     }
 
     private void drawVolume(GuiGraphicsExtractor g, int mouseX, int mouseY) {
         g.text(font, "音量", x0 + 10, sliderY - 1, C_MUTED);
-        g.fill(sliderX, sliderY, sliderX + SLIDER_W, sliderY + SLIDER_H, 0xFF1A2228);
+        final int tr = SLIDER_H / 2;          // 胶囊形：半径 = 高度的一半
+        // 轨道：半透明凹槽
+        roundRect(g, sliderX, sliderY, sliderX + SLIDER_W, sliderY + SLIDER_H, tr, C_TRACK, C_TRACK);
         int fillW = (int) Math.round(SLIDER_W * Math.min(1.0, Config.volume / 3.0));
-        g.fill(sliderX, sliderY, sliderX + fillW, sliderY + SLIDER_H, C_TITLE);
+        // 填充：亮青渐变，和玻璃底融在一起
+        if (fillW > 0) {
+            roundRect(g, sliderX, sliderY, sliderX + fillW, sliderY + SLIDER_H, tr,
+                    0xD06FDDEC, 0xB048B8C8);
+        }
         int handleX = sliderX + fillW;
         boolean over = mouseX >= sliderX - 2 && mouseX <= sliderX + SLIDER_W + 2
                 && mouseY >= sliderY - 5 && mouseY <= sliderY + SLIDER_H + 5;
-        g.fill(handleX - 2, sliderY - 2, handleX + 2, sliderY + SLIDER_H + 2,
-                over || draggingSlider ? 0xFFFFFFFF : 0xFFCFE9EF);
+        // 滑块：外圈半透明光晕 + 实心白芯（hover 时更大更亮）
+        if (over || draggingSlider) {
+            roundRect(g, handleX - 5, sliderY - 4, handleX + 5, sliderY + SLIDER_H + 4, 6,
+                    0x33FFFFFF, 0x33FFFFFF);
+        }
+        roundRect(g, handleX - 3, sliderY - 3, handleX + 3, sliderY + SLIDER_H + 3, 4,
+                over || draggingSlider ? 0xFFFFFFFF : 0xFFE8FBFF,
+                over || draggingSlider ? 0xFFFFFFFF : 0xFFE8FBFF);
         g.text(font, Math.round(Config.volume * 100) + "%",
                 sliderX + SLIDER_W + 8, sliderY - 1, C_TEXT);
     }
@@ -325,9 +406,19 @@ public final class SightAudioScreen extends Screen {
 
     private void drawButton(GuiGraphicsExtractor g, int x, int y, int w, int h, String label,
                             boolean hover, boolean enabled, int accent) {
+        final int r = 6;
         int bg = !enabled ? C_BTN_OFF : (hover ? C_BTN_HOVER : C_BTN);
-        g.fill(x, y, x + w, y + h, bg);
-        border(g, x, y, x + w, y + h, enabled ? (hover ? accent : C_BORDER) : 0xFF2A2F33);
+
+        // 🔴 不画整圈边框。之前用「铺满边框色 + 内层盖住」的做法，但内层是半透明的，
+        //    根本盖不住 ⇒ 按钮整块变成 accent 那个高亮色（hover 时是一片亮青）。
+        //    玻璃按钮靠「比底稍亮的填充 + 顶部一线高光」就够，加边框反而脏。
+        roundRect(g, x, y, x + w, y + h, r, bg, bg);
+
+        if (enabled) {
+            int hi = hover ? 0x40FFFFFF : 0x1FFFFFFF;
+            roundRect(g, x + r, y + 1, x + w - r, y + 2, 1, hi, hi);
+        }
+
         int color = enabled ? (hover ? 0xFFFFFFFF : accent) : 0xFF5A6068;
         g.centeredText(font, label, x + w / 2, y + (h - 8) / 2, color);
     }
@@ -485,17 +576,58 @@ public final class SightAudioScreen extends Screen {
     }
 
     /**
-     * 画 1 像素边框。
+     * 圆角矩形（逐行扫描 + 垂直渐变）。
      *
-     * <p>不用 {@code GuiGraphicsExtractor.outline()}：那个方法在不同版本里参数含义
-     * （是 x,y,w,h 还是 x1,y1,x2,y2）并不稳定，画错的代价是整个面板错位。
-     * 四次 {@code fill} 语义永远没有歧义。</p>
+     * <p>🔴 为什么要这么写：{@code GuiGraphicsExtractor} 只有 {@link #fill} /
+     * {@code fillGradient} 两个<b>实心矩形</b>原语 —— javap 看过整张方法表，
+     * 既没有 {@code blit}（画纹理）也没有任何圆角 API。所以圆角只能拿 1px 高的横条
+     * 一行行堆：每行按圆的方程算出左右该缩进多少，颜色按行号在两端色之间插值。</p>
+     *
+     * <p>代价：一块 348×250 的面板 = 250 次 fill。GUI 一帧几百个 draw 命令是正常量级，
+     * 但<b>别在每帧重建的超长列表里用</b>——那个数量级会真的掉帧。</p>
+     *
+     * @param radius 圆角半径（像素），会被裁到宽高的一半以内
      */
-    private static void border(GuiGraphicsExtractor g, int x1, int y1, int x2, int y2, int color) {
-        g.fill(x1, y1, x2, y1 + 1, color);
-        g.fill(x1, y2 - 1, x2, y2, color);
-        g.fill(x1, y1, x1 + 1, y2, color);
-        g.fill(x2 - 1, y1, x2, y2, color);
+    private static void roundRect(GuiGraphicsExtractor g, int x1, int y1, int x2, int y2,
+                                  int radius, int colorTop, int colorBottom) {
+        int h = y2 - y1;
+        int w = x2 - x1;
+        if (h <= 0 || w <= 0) {
+            return;
+        }
+        // 🔴 用 (h-1)/2、(w-1)/2 而不是 h/2、w/2：半径等于半宽时，第一行的缩进正好等于半宽，
+        //    算出来宽度 0 —— 那一行等于白画，小控件（滑块手柄才 6px 宽）会看起来缺角。
+        //    留 1px 余量，保证最窄的那行至少还有 1 像素。
+        int r = Math.max(0, Math.min(radius, Math.min((h - 1) / 2, (w - 1) / 2)));
+        for (int i = 0; i < h; i++) {
+            int inset = 0;
+            if (r > 0) {
+                if (i < r) {
+                    inset = r - roundSqrt(r * r - (r - i) * (r - i));
+                } else if (i >= h - r) {
+                    int k = i - (h - r) + 1;              // 1..r
+                    inset = r - roundSqrt(Math.max(0, r * r - k * k));
+                }
+            }
+            int color = lerpArgb(colorTop, colorBottom, h == 1 ? 0f : (float) i / (h - 1));
+            int y = y1 + i;
+            g.fill(x1 + inset, y, x2 - inset, y + 1, color);
+        }
+    }
+
+    private static int roundSqrt(int v) {
+        return (int) Math.round(Math.sqrt(Math.max(0, v)));
+    }
+
+    /** ARGB 线性插值（alpha 也一起插，否则半透明渐变的边缘会发灰）。 */
+    private static int lerpArgb(int a, int b, float t) {
+        int aa = (a >>> 24) & 0xFF, ar = (a >> 16) & 0xFF, ag = (a >> 8) & 0xFF, ab = a & 0xFF;
+        int ba = (b >>> 24) & 0xFF, br = (b >> 16) & 0xFF, bg = (b >> 8) & 0xFF, bb = b & 0xFF;
+        int oa = Math.round(aa + (ba - aa) * t);
+        int or = Math.round(ar + (br - ar) * t);
+        int og = Math.round(ag + (bg - ag) * t);
+        int ob = Math.round(ab + (bb - ab) * t);
+        return (oa << 24) | (or << 16) | (og << 8) | ob;
     }
 
     private static boolean inRect(double px, double py, int x, int y, int w, int h) {
