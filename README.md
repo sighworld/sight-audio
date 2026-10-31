@@ -17,7 +17,7 @@
 | 1 | Fabric Loader | 装 mod 的前置（26.2 对应版本；**0.18.4 及以上都行**，不用非得最新） |
 | 2 | Fabric API | SVC 依赖它，我们也用 |
 | 3 | Simple Voice Chat | `voicechat-fabric-2.6.26.jar` |
-| 4 | **sight-audio**（本 mod） | `sight-audio-0.1.0.jar` |
+| 4 | **sight-audio**（本 mod） | `sight-audio-0.1.1.jar` |
 
 四个 jar 丢进 `mods/`，完事。**没有驱动，没有虚拟声卡，没有系统设置。**
 
@@ -145,7 +145,7 @@ python tools/extract-voicechat-api.py /path/to/voicechat-bukkit-2.6.26.jar
 
 # 2) 构建
 ./gradlew build          # Windows 用 gradlew.bat build
-# 产物：build/libs/sight-audio-0.1.0.jar
+# 产物：build/libs/sight-audio-0.1.1.jar
 ```
 
 `libs/voicechat-api.jar` 是 **compileOnly** 依赖：只用来编译，**不打进产物**，
@@ -178,7 +178,7 @@ Namespace (named) does not match current runtime namespace (official)`。
 
 | 文件 | 说明 |
 |---|---|
-| `sight-audio-0.1.0.jar` | 本 mod（**必需**） |
+| `sight-audio-0.1.1.jar` | 本 mod（**必需**） |
 | `fabric-api-0.161.0+26.2.jar` | Simple Voice Chat 依赖它 |
 | `voicechat-fabric-2.6.26.jar` | Simple Voice Chat（语音通道） |
 

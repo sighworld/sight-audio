@@ -2,7 +2,7 @@ plugins {
     id 'fabric-loom' version '1.19.3'
 }
 
-version = '0.1.0'
+version = '0.1.1'
 group = 'com.sight'
 
 base {
