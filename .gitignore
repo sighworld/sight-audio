@@ -1,0 +1,25 @@
+# ── Gradle / Loom ──────────────────────────────────────────────
+.gradle/
+build/
+run/
+*.hprof
+
+# ── 本地编译依赖（从 SVC 服务端 jar 抽取，不进仓库） ──────────
+#   生成方式：python tools/extract-voicechat-api.py <voicechat-bukkit-*.jar>
+libs/voicechat-api.jar
+
+# ── 发行产物（走 GitHub Release，不进仓库） ──────────────────
+#   dist/ 是本地打包目录（给玩家发的 zip），里面的 jar 和说明都不入库
+dist/
+
+# ── IDE / 系统 ────────────────────────────────────────────────
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── 日志 / 临时 ───────────────────────────────────────────────
+*.log
+*.tmp

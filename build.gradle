@@ -1,0 +1,59 @@
+plugins {
+    id 'fabric-loom' version '1.19.3'
+}
+
+version = '0.1.0'
+group = 'com.sight'
+
+base {
+    archivesName = 'sight-audio'
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        name = 'Fabric'
+        url = 'https://maven.fabricmc.net/'
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:26.2"
+    // 🔴 恒等映射（identity），不是漏配。
+    //    - Mojang 从 26.1 起取消混淆，类名/方法名就是真实名字，Yarn 也停更在 1.21.11；
+    //    - 26.2 的 version json 里 downloads 只有 client/server、没有 *_mappings，
+    //      所以 loom.officialMojangMappings() 会报「Failed to find official mojang mappings」；
+    //    - 但 loom 又要求 mappings 配置非空 ⇒ 用一份空表的 tiny v2（名字映射到名字）。
+    mappings files('identity-26.2.jar')
+
+    modImplementation "net.fabricmc:fabric-loader:0.18.4"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:0.161.0+26.2"
+
+    // 🔴 SVC 官方 maven（repo.maxhenkel.de）在部分网络下不可达（curl 直接返回 000），
+    //    所以从官方发布的 voicechat-bukkit-2.6.26.jar 里抽出纯 API 包当本地依赖
+    //    （抽取脚本：tools/extract-voicechat-api.py）。
+    //    compileOnly：不打进产物，运行期由客户端的 SVC 提供。
+    compileOnly files('libs/voicechat-api.jar')
+}
+
+// 26.2 没有 intermediary 中间命名空间，产物不再需要重映射
+loom {
+    noIntermediateMappings()
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+processResources {
+    inputs.property 'version', project.version
+    filesMatching('fabric.mod.json') {
+        expand 'version': project.version
+    }
+}

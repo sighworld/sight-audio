@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "sight-audio",
+  "version": "${version}",
+  "name": "Sight Audio",
+  "description": "把本机某个软件正在播放的声音分享给附近的玩家：经 Simple Voice Chat 的空间音频通道，走近了听得见，走远了听不见。",
+  "authors": [ "Sight" ],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": [ "com.sight.audio.SightAudioClient" ],
+    "voicechat": [ "com.sight.audio.VoicechatHook" ]
+  },
+  "depends": {
+    "fabricloader": ">=0.18.4",
+    "minecraft": "~26.2",
+    "java": ">=25",
+    "fabric-api": "*",
+    "voicechat": "*"
+  }
+}

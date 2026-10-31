@@ -1,0 +1,14 @@
+# 统一换行：源码一律 LF（Windows 上也不留 CRLF，避免 diff 噪声）
+* text=auto eol=lf
+
+# 🔴 Windows 批处理必须是 CRLF，否则 cmd 解析个别情况下会出错
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Shell 脚本必须 LF（被 CRLF 污染会报 "bad interpreter"）
+gradlew text eol=lf
+
+# 二进制：别让 git 试图合并/转换
+*.jar binary
+*.png binary
+*.ogg binary
